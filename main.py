@@ -5,375 +5,312 @@ import random
 import time
 import re
 
-st.set_page_config(page_title="NMIT Pay", page_icon="💸", layout="centered")
+st.set_page_config(page_title="GPay Clone", page_icon="💳", layout="centered")
 
 # ---------- SESSION STATE ----------
 if "balance" not in st.session_state:
     st.session_state.balance = 50000.00
 
 if "transactions" not in st.session_state:
-    st.session_state.transactions = [
-        {
-            "Date": datetime.now().strftime("%b %d, %Y %I:%M %p"),
-            "ID": f"T{random.randint(1000000000, 9999999999)}",
-            "Type": "Credit",
-            "Party": "Welcome Bonus",
-            "Note": "Cashback Reward",
-            "Amount": 500.00,
-            "Status": "Success",
-        }
-    ]
-
-if "show_balance" not in st.session_state:
-    st.session_state.show_balance = False
+    st.session_state.transactions = []
 
 if "profile" not in st.session_state:
     st.session_state.profile = {
-        "name": "NMIT Developer",
-        "upi_id": "nmitdev@nmit",
+        "name": "Abhishek",
+        "upi_id": "abhi.document-2@okicici",
         "phone": "+91 98765 43210",
-        "bank": "State Bank of NMIT",
+        "bank": "ICICI Bank",
         "account_mask": "XXXX 1234",
     }
 
-if "last_receipt" not in st.session_state:
-    st.session_state.last_receipt = None
-
-if "favorites" not in st.session_state:
-    st.session_state.favorites = ["satoshi@nmit", "alice@ybl", "9876543210"]
-
-# ---------- HELPERS ----------
-def validate_upi(value: str) -> bool:
-    if not value:
-        return False
-    upi_pattern = r"^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$"
-    phone_pattern = r"^\d{10}$"
-    return bool(re.match(upi_pattern, value) or re.match(phone_pattern, value))
-
-def create_txn_id():
-    return f"T{random.randint(1000000000, 9999999999)}"
-
-def add_transaction(tx_type, party, note, amount, status="Success"):
-    txn = {
-        "Date": datetime.now().strftime("%b %d, %Y %I:%M %p"),
-        "ID": create_txn_id(),
-        "Type": tx_type,
-        "Party": party,
-        "Note": note,
-        "Amount": amount,
-        "Status": status,
-    }
-    st.session_state.transactions.insert(0, txn)
-    return txn
-
-def get_total_spends():
-    return sum(
-        tx["Amount"]
-        for tx in st.session_state.transactions
-        if tx["Type"] == "Debit" and tx["Status"] == "Success"
-    )
-
-def get_total_cashback():
-    return 450
-
-# ---------- STYLING ----------
+# ---------- CSS & STYLING ----------
+# We use custom CSS to simulate a mobile app layout and match the Google Pay theme
 st.markdown("""
 <style>
+    /* Simulate a mobile screen width */
+    .block-container {
+        max-width: 450px;
+        padding-top: 1rem;
+        padding-bottom: 0rem;
+    }
+    
+    /* App Background */
     .stApp {
-        background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+        background-color: #ffffff;
     }
 
-    #MainMenu, footer, header {
-        visibility: hidden;
+    /* Hide Streamlit elements */
+    #MainMenu, footer, header { visibility: hidden; }
+
+    /* Custom GPay Top Background */
+    .gpay-header {
+        background: linear-gradient(180deg, #e3edfd 0%, #f0f4fa 70%, #ffffff 100%);
+        padding: 20px 15px;
+        border-radius: 0 0 20px 20px;
+        margin: -1rem -1rem 1rem -1rem;
     }
 
-    .title-block {
-        padding: 0.25rem 0 1rem 0;
-    }
-
-    .hero-card {
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-        color: white;
-        border-radius: 24px;
-        padding: 24px;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
-        margin-bottom: 18px;
-    }
-
-    .glass-card {
-        background: rgba(255,255,255,0.86);
-        border: 1px solid rgba(255,255,255,0.5);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 18px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.07);
-        margin-bottom: 16px;
-    }
-
-    .txn-credit, .txn-debit {
-        padding: 14px 16px;
-        border-radius: 16px;
-        margin-bottom: 10px;
+    /* Search Bar */
+    .search-box {
         background: white;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+        border-radius: 30px;
+        padding: 12px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        color: #5f6368;
+        font-size: 14px;
+        margin-top: 10px;
     }
+    .search-box img { width: 30px; height: 30px; border-radius: 50%; }
 
-    .txn-credit {
-        border-left: 5px solid #16a34a;
+    /* Promo Banner */
+    .promo-banner {
+        text-align: center;
+        padding: 20px 0;
+        margin-top: 10px;
     }
-
-    .txn-debit {
-        border-left: 5px solid #dc2626;
+    .promo-banner h3 {
+        font-size: 18px;
+        color: #202124;
+        margin-bottom: 10px;
+        font-weight: 500;
     }
-
-    .small-muted {
-        color: #64748b;
-        font-size: 0.9rem;
-    }
-
-    .success-pill, .danger-pill {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .success-pill {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .danger-pill {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .stButton>button {
-        width: 100%;
-        border-radius: 14px;
-        height: 3.1em;
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    .promo-btn {
+        background-color: #1a73e8;
         color: white;
         border: none;
-        font-weight: 600;
-        transition: 0.25s ease;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
     }
 
-    .stButton>button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(99, 102, 241, 0.35);
+    /* Action Grid */
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px 5px;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .action-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 12px;
+        color: #3c4043;
+    }
+    .action-icon {
+        font-size: 24px;
+        color: #1a73e8;
+        margin-bottom: 8px;
+    }
+
+    /* UPI Pill */
+    .upi-pill-container { text-align: center; margin: 25px 0; }
+    .upi-pill {
+        background-color: #f1f3f4;
+        color: #3c4043;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        display: inline-block;
+    }
+
+    /* People Section */
+    .section-title {
+        font-size: 20px;
+        color: #202124;
+        margin: 20px 0 15px 5px;
+        font-weight: 400;
+    }
+    .people-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px 10px;
+        text-align: center;
+    }
+    .person-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
         color: white;
+        margin-bottom: 8px;
     }
-
-    .metric-label {
-        color: #64748b;
-        font-size: 13px;
-        margin-bottom: 4px;
+    .person-name {
+        font-size: 12px;
+        color: #3c4043;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 65px;
     }
-
-    .receipt-box {
-        background: #f8fafc;
-        border: 1px dashed #cbd5e1;
-        border-radius: 16px;
-        padding: 16px;
-    }
+    
+    /* Transaction/Tabs Overrides */
+    .stTabs [data-baseweb="tab-list"] { justify-content: center; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- HEADER ----------
-st.markdown('<div class="title-block">', unsafe_allow_html=True)
-st.title("💸 NMIT Pay")
-st.caption("Fast, secure, student-friendly digital payments")
-st.markdown("</div>", unsafe_allow_html=True)
-
+# ---------- NAVIGATION ----------
 tab_home, tab_pay, tab_history, tab_profile = st.tabs(
     ["🏠 Home", "💸 Pay", "📜 History", "👤 Profile"]
 )
 
-# ---------- HOME ----------
+# ---------- 1. HOME (GPAY CLONE UI) ----------
 with tab_home:
-    profile = st.session_state.profile
-    balance_display = (
-        f"₹{st.session_state.balance:,.2f}"
-        if st.session_state.show_balance
-        else "₹ ••••••"
-    )
-
     st.markdown(f"""
-    <div class="hero-card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <div style="font-size:14px; opacity:0.8;">Welcome back</div>
-                <div style="font-size:28px; font-weight:700;">{profile['name']} 👋</div>
-            </div>
-            <div style="font-size:13px; opacity:0.85; text-align:right;">
-                <div>{profile['bank']}</div>
-                <div>{profile['account_mask']}</div>
-            </div>
+    <div class="gpay-header">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #202124; font-weight: 500;">
+            <span>10:08</span>
+            <span>📶 🔋</span>
         </div>
-        <div style="margin-top:22px; font-size:14px; opacity:0.82;">Available Balance</div>
-        <div style="font-size:34px; font-weight:800; margin-top:6px;">{balance_display}</div>
-        <div style="margin-top:8px; font-size:13px; opacity:0.75;">UPI ID: {profile['upi_id']}</div>
+        
+        <div class="search-box">
+            <span>🔍 Pay friends and merchants</span>
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Abhi" alt="Profile">
+        </div>
+        
+        <div class="promo-banner">
+            <h3>Instant loans up to ₹8 lakhs</h3>
+            <button class="promo-btn">Apply now ></button>
+        </div>
+    </div>
+    
+    <div class="action-grid">
+        <div class="action-item"><div class="action-icon">📱</div>Scan any QR</div>
+        <div class="action-item"><div class="action-icon">📞</div>Pay contacts</div>
+        <div class="action-item"><div class="action-icon">📲</div>Pay phone number</div>
+        <div class="action-item"><div class="action-icon">🏦</div>Bank transfer</div>
+        <div class="action-item"><div class="action-icon">@</div>Pay UPI ID</div>
+        <div class="action-item"><div class="action-icon">🔄</div>Self transfer</div>
+        <div class="action-item"><div class="action-icon">🧾</div>Pay bills</div>
+        <div class="action-item"><div class="action-icon">⚡</div>Mobile recharge</div>
+    </div>
+    
+    <div class="upi-pill-container">
+        <div class="upi-pill">UPI ID: {st.session_state.profile['upi_id']}</div>
+    </div>
+    
+    <div class="section-title">People</div>
+    <div class="people-grid">
+        <div class="person-item">
+            <div class="avatar" style="background-color: #e8eaed; color: #1a73e8;">🔄</div>
+            <div class="person-name">Self transfer</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Dipa'); background-size: cover;"></div>
+            <div class="person-name">Dipa</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-color: #00897b;">G</div>
+            <div class="person-name">GITA MOH...</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Kinjan'); background-size: cover;"></div>
+            <div class="person-name">Kinjan</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Sweta'); background-size: cover;"></div>
+            <div class="person-name">Sweta</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-color: #1e88e5;">A</div>
+            <div class="person-name">ABHI...</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-color: #546e7a;">B</div>
+            <div class="person-name">BAPI DAS</div>
+        </div>
+        <div class="person-item">
+            <div class="avatar" style="background-color: white; border: 1px solid #dadce0; color: #1a73e8;">⌄</div>
+            <div class="person-name">More</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    colA, colB = st.columns(2)
-    with colA:
-        if st.button("👁 Toggle Balance"):
-            st.session_state.show_balance = not st.session_state.show_balance
-            st.rerun()
-    with colB:
-        st.button("🔒 Security Shield")
 
-    st.markdown("### Insights")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Cashback", f"₹{get_total_cashback():,.0f}", "+₹12")
-    c2.metric("Transactions", len(st.session_state.transactions))
-    c3.metric("Spent", f"₹{get_total_spends():,.0f}")
-
-    st.markdown("### Quick Pay")
-    fav_cols = st.columns(len(st.session_state.favorites))
-    for i, fav in enumerate(st.session_state.favorites):
-        fav_cols[i].button(f"Pay\n{fav}", key=f"fav_{i}")
-
-# ---------- PAY ----------
+# ---------- 2. FUNCTIONAL PAY TAB ----------
 with tab_pay:
-    st.subheader("Send Money")
-    st.caption("Protected with UPI PIN verification")
+    st.subheader("Make a Payment")
+    
+    upi_id = st.text_input("Receiver UPI ID / Phone", placeholder="e.g. dipa@okicici")
+    amount = st.number_input("Amount (₹)", min_value=1.0, step=10.0, format="%.2f")
+    note = st.text_input("Add a note", placeholder="For lunch...")
+    
+    if st.button("Secure Pay", type="primary", use_container_width=True):
+        if not upi_id:
+            st.error("Enter a valid UPI ID or phone number.")
+        elif amount > st.session_state.balance:
+            st.error("Transaction Failed: Insufficient Bank Balance!")
+        else:
+            with st.spinner("Processing..."):
+                time.sleep(1.5)
+            
+            # Deduct balance and log transaction
+            st.session_state.balance -= amount
+            tx_id = f"T{random.randint(1000000000, 9999999999)}"
+            st.session_state.transactions.insert(0, {
+                "Date": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                "ID": tx_id,
+                "To": upi_id,
+                "Note": note if note else "UPI Payment",
+                "Amount": amount
+            })
+            
+            st.success(f"₹{amount:,.2f} sent to {upi_id} successfully! ✅")
+            st.balloons()
 
-    with st.container():
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 
-        upi_id = st.text_input(
-            "Receiver UPI ID or 10-digit phone number",
-            placeholder="e.g. satoshi@nmit or 9876543210"
-        )
-        amount = st.number_input(
-            "Amount (₹)",
-            min_value=1.0,
-            step=50.0,
-            format="%.2f"
-        )
-        note = st.text_input(
-            "Add note",
-            placeholder="Mess bill, rent, snacks..."
-        )
-        pin = st.text_input(
-            "Enter 4-digit UPI PIN",
-            type="password",
-            max_chars=4,
-            placeholder="****"
-        )
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        if amount:
-            st.info(f"You are about to pay ₹{amount:,.2f}")
-
-        if st.button("✅ Secure Pay"):
-            if not validate_upi(upi_id):
-                st.error("Enter a valid UPI ID or 10-digit phone number.")
-            elif amount <= 0:
-                st.error("Amount must be greater than ₹0.")
-            elif amount > st.session_state.balance:
-                st.error("Insufficient balance for this transaction.")
-            elif len(pin) != 4 or not pin.isdigit():
-                st.error("Enter a valid 4-digit UPI PIN.")
-            else:
-                with st.spinner("Authenticating securely..."):
-                    time.sleep(1)
-
-                with st.spinner("Processing payment..."):
-                    time.sleep(1.2)
-
-                st.session_state.balance -= amount
-                txn = add_transaction(
-                    tx_type="Debit",
-                    party=upi_id,
-                    note=note if note else "UPI Payment",
-                    amount=amount,
-                    status="Success",
-                )
-                st.session_state.last_receipt = txn
-
-                st.success(f"₹{amount:,.2f} sent successfully to {upi_id}")
-                st.balloons()
-
-    if st.session_state.last_receipt:
-        tx = st.session_state.last_receipt
-        st.markdown("### Last Receipt")
-        st.markdown(f"""
-        <div class="receipt-box">
-            <p><strong>Transaction ID:</strong> {tx['ID']}</p>
-            <p><strong>Paid To:</strong> {tx['Party']}</p>
-            <p><strong>Amount:</strong> ₹{tx['Amount']:,.2f}</p>
-            <p><strong>Date:</strong> {tx['Date']}</p>
-            <p><strong>Note:</strong> {tx['Note']}</p>
-            <p><strong>Status:</strong> Success ✅</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ---------- HISTORY ----------
+# ---------- 3. HISTORY TAB ----------
 with tab_history:
     st.subheader("Transaction History")
-
+    st.write(f"**Current Balance:** ₹{st.session_state.balance:,.2f}")
+    st.divider()
+    
     if st.session_state.transactions:
-        txn_type_filter = st.selectbox("Filter", ["All", "Debit", "Credit"])
-
-        filtered = st.session_state.transactions
-        if txn_type_filter != "All":
-            filtered = [tx for tx in filtered if tx["Type"] == txn_type_filter]
-
-        for tx in filtered:
-            klass = "txn-debit" if tx["Type"] == "Debit" else "txn-credit"
-            amount_prefix = "-" if tx["Type"] == "Debit" else "+"
-            amount_color = "#dc2626" if tx["Type"] == "Debit" else "#16a34a"
-            status_class = "success-pill" if tx["Status"] == "Success" else "danger-pill"
-
+        for tx in st.session_state.transactions:
             st.markdown(f"""
-            <div class="{klass}">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-weight:700;">{tx['Type']} • {tx['Party']}</div>
-                        <div class="small-muted">{tx['Date']} • {tx['Note']}</div>
-                        <div class="{status_class}" style="margin-top:8px;">{tx['Status']}</div>
-                    </div>
-                    <div style="font-weight:800; color:{amount_color};">
-                        {amount_prefix} ₹{tx['Amount']:,.2f}
-                    </div>
+            <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <strong style="color: #202124;">To: {tx['To']}</strong>
+                    <strong style="color: #ea4335;">- ₹{tx['Amount']:,.2f}</strong>
                 </div>
-                <div class="small-muted" style="margin-top:10px;">Txn ID: {tx['ID']}</div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #5f6368;">
+                    <span>{tx['Date']} • {tx['Note']}</span>
+                    <span>{tx['ID']}</span>
+                </div>
             </div>
             """, unsafe_allow_html=True)
-
-        df = pd.DataFrame(st.session_state.transactions)
-        with st.expander("View structured data"):
-            st.dataframe(df, use_container_width=True)
     else:
-        st.info("No transactions yet. Your recent payments will appear here.")
+        st.info("No recent transactions.")
 
-# ---------- PROFILE ----------
+
+# ---------- 4. PROFILE / ACCOUNTS TAB ----------
 with tab_profile:
     profile = st.session_state.profile
-
-    left, right = st.columns([1, 2])
-
-    with left:
-        st.image(
-            f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={profile['upi_id']}",
-            caption="Scan to pay"
-        )
-
-    with right:
-        st.markdown(f"### {profile['name']}")
-        st.write(f"**UPI ID:** `{profile['upi_id']}`")
-        st.write(f"**Phone:** {profile['phone']}")
-        st.write(f"**Bank:** {profile['bank']}")
-        st.write(f"**A/C:** {profile['account_mask']}")
-
-    st.write("---")
-    st.button("⚙️ Settings")
-    st.button("🛡 Privacy & Security")
-    st.button("❓ Help & Support")
-    st.button("🚪 Logout", type="primary")
+    st.subheader("Bank Accounts")
+    
+    st.markdown(f"""
+    <div style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e8eaed; text-align: center;">
+        <h3 style="color: #202124; margin: 0;">{profile['bank']}</h3>
+        <p style="color: #5f6368; margin-top: 5px;">Account ending in {profile['account_mask']}</p>
+        <h2 style="color: #1a73e8; margin: 15px 0;">₹{st.session_state.balance:,.2f}</h2>
+        <p style="font-size: 12px; color: #5f6368; background: #f1f3f4; padding: 5px; border-radius: 10px; display: inline-block;">Primary Account</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.divider()
+    st.write(f"**Name:** {profile['name']}")
+    st.write(f"**UPI ID:** {profile['upi_id']}")
+    st.write(f"**Phone:** {profile['phone']}")
