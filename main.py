@@ -21,115 +21,50 @@ if "profile" not in st.session_state:
         "mask": "XXXX 1234"
     }
 
-# ---------- CSS (FULL FIX) ----------
+if "action" not in st.session_state:
+    st.session_state.action = None
+
+# ---------- CSS ----------
 st.markdown("""
 <style>
-
 body {background:#0b1220;font-family:Inter;}
 #MainMenu, footer, header {visibility:hidden;}
 
-.block-container {
-    max-width: 1200px;
-    padding: 20px;
-    margin: auto;
-}
+.block-container {max-width:1200px;padding:20px;margin:auto;}
 
-/* HEADER */
 .header {
     background: linear-gradient(135deg,#1a73e8,#4285f4);
-    padding:25px;
-    border-radius:20px;
-    color:white;
+    padding:25px;border-radius:20px;color:white;
 }
 
-/* BALANCE CARD */
 .balance {
-    background:white;
-    padding:22px;
-    border-radius:16px;
-    box-shadow:0 6px 18px rgba(0,0,0,0.1);
+    background:white;padding:22px;border-radius:16px;
     color:#202124;
 }
 
-.balance h2 {
-    color:#1a73e8;
-    margin:10px 0;
-}
+.balance h2 {color:#1a73e8;}
 
-.balance small {
-    color:#5f6368;
-}
-
-/* GRID */
 .grid {
     display:grid;
     grid-template-columns:repeat(5,1fr);
-    gap:20px;
-    margin-top:20px;
-    text-align:center;
+    gap:20px;margin-top:20px;text-align:center;
 }
 
 .icon {
-    width:55px;height:55px;
-    border-radius:16px;
+    width:55px;height:55px;border-radius:16px;
     background:#e8f0fe;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+    display:flex;align-items:center;justify-content:center;
     margin:auto;
 }
 
-/* CARD FIX (IMPORTANT) */
 .card {
-    background:white;
-    padding:16px;
-    border-radius:14px;
-    margin-top:12px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.06);
-    color:#202124;
+    background:white;padding:16px;border-radius:14px;
+    margin-top:12px;color:#202124;
 }
 
-/* TEXT FIX */
-.title {
-    font-weight:600;
-    color:#202124;
-}
-
-.subtitle {
-    font-size:12px;
-    color:#5f6368;
-}
-
-.amount {
-    float:right;
-    color:#ea4335;
-    font-weight:600;
-}
-
-/* SUCCESS */
-.success {
-    text-align:center;
-    background:white;
-    padding:25px;
-    border-radius:16px;
-    color:#202124;
-}
-
-/* BUTTON */
-.stButton button {
-    height:50px;
-    border-radius:12px;
-    background:#1a73e8;
-}
-
-/* RESPONSIVE */
-@media (max-width: 900px) {
-    .grid {grid-template-columns: repeat(3,1fr);}
-}
-
-@media (max-width: 600px) {
-    .grid {grid-template-columns: repeat(2,1fr);}
-}
+.title {font-weight:600;}
+.subtitle {font-size:12px;color:#5f6368;}
+.amount {float:right;color:#ea4335;}
 
 </style>
 """, unsafe_allow_html=True)
@@ -151,6 +86,8 @@ with home:
         """, unsafe_allow_html=True)
 
         st.markdown("### 💸 Quick Actions")
+
+        # VISUAL UI (UNCHANGED)
         st.markdown("""
         <div class="grid">
             <div><div class="icon">📷</div>Scan QR</div>
@@ -161,6 +98,46 @@ with home:
         </div>
         """, unsafe_allow_html=True)
 
+        # INVISIBLE BUTTON LAYER
+        c1, c2, c3, c4, c5 = st.columns(5)
+
+        if c1.button(" ", key="scan"):
+            st.session_state.action = "scan"
+
+        if c2.button(" ", key="pay_anyone"):
+            st.session_state.action = "pay"
+
+        if c3.button(" ", key="bank"):
+            st.session_state.action = "bank"
+
+        if c4.button(" ", key="recharge"):
+            st.session_state.action = "recharge"
+
+        if c5.button(" ", key="bills"):
+            st.session_state.action = "bills"
+
+        # ---------- ACTION RESPONSE ----------
+        if st.session_state.action:
+
+            st.markdown("### ⚡ Action")
+
+            if st.session_state.action == "scan":
+                st.info("📷 QR Scanner coming soon")
+
+            elif st.session_state.action == "pay":
+                st.session_state.current_tab = 1
+                st.switch_page
+
+            elif st.session_state.action == "bank":
+                st.info("🏦 Bank Transfer UI coming soon")
+
+            elif st.session_state.action == "recharge":
+                st.info("⚡ Recharge feature coming soon")
+
+            elif st.session_state.action == "bills":
+                st.info("🧾 Bill payment feature coming soon")
+
+        # ---------- RECENT ----------
         st.markdown("### 📊 Recent Activity")
 
         if st.session_state.transactions:
@@ -191,18 +168,14 @@ with pay:
 
     upi = st.text_input("UPI ID / Phone")
     amt = st.number_input("Amount ₹", min_value=1.0)
-    note = st.text_input("Note")
 
-    if st.button("Pay Now", use_container_width=True):
+    if st.button("Pay Now"):
 
         if not upi:
             st.error("Enter UPI ID")
         elif amt > st.session_state.balance:
             st.error("Insufficient balance")
         else:
-            with st.spinner("Processing..."):
-                time.sleep(1)
-
             st.session_state.balance -= amt
             txid = f"T{random.randint(100000,999999)}"
 
@@ -213,30 +186,21 @@ with pay:
                 "id": txid
             })
 
-            st.markdown(f"""
-            <div class="success">
-                <h2>₹{amt:,.2f}</h2>
-                <p>Paid to {upi}</p>
-                <small>Txn ID: {txid}</small>
-            </div>
-            """, unsafe_allow_html=True)
+            st.success(f"Paid ₹{amt} to {upi}")
 
 # ---------- HISTORY ----------
 with history:
 
     st.subheader("All Transactions")
 
-    if st.session_state.transactions:
-        for tx in st.session_state.transactions:
-            st.markdown(f"""
-            <div class="card">
-                <span class="title">{tx['to']}</span>
-                <span class="amount">₹{tx['amt']:,.2f}</span>
-                <div class="subtitle">{tx['date']} • {tx['id']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("No transactions yet.")
+    for tx in st.session_state.transactions:
+        st.markdown(f"""
+        <div class="card">
+            <span class="title">{tx['to']}</span>
+            <span class="amount">₹{tx['amt']:,.2f}</span>
+            <div class="subtitle">{tx['date']} • {tx['id']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ---------- PROFILE ----------
 with profile:
