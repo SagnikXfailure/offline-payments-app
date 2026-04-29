@@ -3,8 +3,9 @@ from datetime import datetime
 import random
 import time
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 from pyzxing import BarCodeReader
+import os
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -26,6 +27,30 @@ if "profile" not in st.session_state:
 
 if "popup" not in st.session_state:
     st.session_state.popup = None
+
+# ---------- QR DECODE FUNCTION ----------
+def decode_qr(image):
+    try:
+        # enhance image (IMPORTANT FIX)
+        image = image.convert("L")  # grayscale
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(2.0)
+
+        temp_path = "temp_qr.png"
+        image.save(temp_path)
+
+        reader = BarCodeReader()
+        results = reader.decode(temp_path)
+
+        if results:
+            for r in results:
+                if r.get("parsed"):
+                    return True, r["parsed"]
+
+        return False, None
+
+    except Exception as e:
+        return False, None
 
 # ---------- CSS ----------
 st.markdown("""
@@ -138,30 +163,22 @@ with home:
                 if img:
                     image = Image.open(img)
 
-                    # Save temp file
-                    image_path = "temp_qr.png"
-                    image.save(image_path)
-
-                    # Scan animation
+                    # animation
                     for i in range(100):
-                        time.sleep(0.01)
+                        time.sleep(0.005)
                         progress.progress(i + 1)
 
-                    reader = BarCodeReader()
-                    result = reader.decode(image_path)
+                    success, data = decode_qr(image)
 
-                    if result and result[0].get("parsed"):
-                        data = result[0]["parsed"]
-
+                    if success:
                         if data.startswith("upi://"):
                             status.success(f"✅ UPI QR Detected\n\n{data}")
                         else:
                             status.success(f"✅ QR Detected\n\n{data}")
 
                         st.balloons()
-
                     else:
-                        status.error("❌ Not a valid QR or unclear image")
+                        status.error("❌ QR not detected properly\nTry better lighting or alignment")
 
                     st.image(image)
 
