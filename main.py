@@ -27,6 +27,16 @@ if "popup" not in st.session_state:
 if "qr_result" not in st.session_state:
     st.session_state.qr_result = ""
 
+# ---------- QR VALIDATION ----------
+def validate_qr(data):
+    if not data:
+        return "invalid"
+    if data.startswith("upi://"):
+        return "upi"
+    if data.startswith("http"):
+        return "suspicious"
+    return "invalid"
+
 # ---------- CSS ----------
 st.markdown("""
 <style>
@@ -78,6 +88,20 @@ body {background:#0b1220;font-family:Inter;}
     margin-top:20px;
     box-shadow:0 10px 30px rgba(0,0,0,0.4);
 }
+
+/* SCAN LINE */
+.scan-line {
+    position:absolute;
+    width:100%;
+    height:2px;
+    background:#00ffcc;
+    animation: scan 2s infinite;
+}
+
+@keyframes scan {
+    0% {top:0;}
+    100% {top:100%;}
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -125,26 +149,29 @@ with home:
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- REAL QR SCANNER ----------
+            # ---------- SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
 
                 components.html("""
-                <div id="reader" style="width:100%"></div>
+                <div style="position:relative">
+                    <div id="reader" style="width:100%"></div>
+                    <div class="scan-line"></div>
+                </div>
 
                 <script src="https://unpkg.com/html5-qrcode"></script>
 
-                <script>
-                function onScanSuccess(decodedText) {
-                    const streamlitEvent = new Event("input", {
-                        bubbles: true
-                    });
-                    const textArea = window.parent.document.querySelector("textarea");
-                    if (textArea) {
-                        textArea.value = decodedText;
-                        textArea.dispatchEvent(streamlitEvent);
+                function sendToStreamlit(data){
+                    const textarea = window.parent.document.querySelector("textarea");
+                    if(textarea){
+                        textarea.value = data;
+                        textarea.dispatchEvent(new Event("input",{bubbles:true}));
                     }
+                }
+
+                function onScanSuccess(decodedText) {
+                    sendToStreamlit(decodedText);
                 }
 
                 let scanner = new Html5QrcodeScanner(
@@ -152,28 +179,42 @@ with home:
                     { fps: 10, qrbox: 250 },
                     false
                 );
+
                 scanner.render(onScanSuccess);
-                </script>
                 """, height=400)
 
-                qr_data = st.text_area("Scanned QR Result")
+                qr_data = st.text_area("QR Result")
 
                 if qr_data:
+
                     st.session_state.qr_result = qr_data
 
-                    if qr_data.startswith("upi://"):
+                    result = validate_qr(qr_data)
+
+                    # ---------- AUTO CLOSE + REDIRECT ----------
+                    st.session_state.popup = "pay"
+
+                    if result == "upi":
                         st.success("✅ UPI QR Detected")
+
+                    elif result == "suspicious":
+                        st.warning("⚠️ Suspicious QR (URL detected)")
+
                     else:
-                        st.success("✅ QR Detected")
+                        st.error("❌ Invalid QR")
+
+                    st.rerun()
 
             # ---------- PAY ----------
             elif st.session_state.popup == "pay":
+
                 st.subheader("Pay Anyone")
 
                 upi = st.text_input("UPI ID", value=st.session_state.qr_result)
                 amt = st.number_input("Amount ₹", min_value=1.0)
 
                 if st.button("Send"):
+
                     if amt > st.session_state.balance:
                         st.error("Insufficient balance")
                     else:
@@ -192,12 +233,14 @@ with home:
 
             # ---------- RECHARGE ----------
             elif st.session_state.popup == "recharge":
+
                 st.subheader("Recharge")
 
                 num = st.text_input("Mobile")
                 amt = st.number_input("Amount", min_value=10.0)
 
                 if st.button("Recharge"):
+
                     if amt > st.session_state.balance:
                         st.error("Insufficient balance")
                     else:
@@ -226,30 +269,3 @@ with home:
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
-
-# ---------- HISTORY ----------
-with history:
-    st.subheader("All Transactions")
-
-    for tx in st.session_state.transactions:
-        st.markdown(f"""
-        <div class="card">
-            <b>{tx['to']}</b>
-            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
-            <div style="font-size:12px;color:gray;">
-                {tx['date']} • {tx['id']}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ---------- PROFILE ----------
-with profile:
-    p = st.session_state.profile
-
-    st.markdown(f"""
-    <div class="card">
-        <h3>{p['name']}</h3>
-        <p>{p['upi']}</p>
-        <p>{p['bank']} • {p['mask']}</p>
-    </div>
-    """, unsafe_allow_html=True)
