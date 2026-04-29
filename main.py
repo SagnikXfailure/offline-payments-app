@@ -1,11 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import random
-import time
-import numpy as np
-from PIL import Image, ImageEnhance
-from pyzxing import BarCodeReader
-import os
+import streamlit.components.v1 as components
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -28,29 +24,8 @@ if "profile" not in st.session_state:
 if "popup" not in st.session_state:
     st.session_state.popup = None
 
-# ---------- QR DECODE FUNCTION ----------
-def decode_qr(image):
-    try:
-        # enhance image (IMPORTANT FIX)
-        image = image.convert("L")  # grayscale
-        enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(2.0)
-
-        temp_path = "temp_qr.png"
-        image.save(temp_path)
-
-        reader = BarCodeReader()
-        results = reader.decode(temp_path)
-
-        if results:
-            for r in results:
-                if r.get("parsed"):
-                    return True, r["parsed"]
-
-        return False, None
-
-    except Exception as e:
-        return False, None
+if "qr_result" not in st.session_state:
+    st.session_state.qr_result = ""
 
 # ---------- CSS ----------
 st.markdown("""
@@ -150,45 +125,52 @@ with home:
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- QR SCANNER ----------
+            # ---------- REAL QR SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
 
-                img = st.camera_input("Scan QR")
+                components.html("""
+                <div id="reader" style="width:100%"></div>
 
-                progress = st.progress(0)
-                status = st.empty()
+                <script src="https://unpkg.com/html5-qrcode"></script>
 
-                if img:
-                    image = Image.open(img)
+                <script>
+                function onScanSuccess(decodedText) {
+                    const streamlitEvent = new Event("input", {
+                        bubbles: true
+                    });
+                    const textArea = window.parent.document.querySelector("textarea");
+                    if (textArea) {
+                        textArea.value = decodedText;
+                        textArea.dispatchEvent(streamlitEvent);
+                    }
+                }
 
-                    # animation
-                    for i in range(100):
-                        time.sleep(0.005)
-                        progress.progress(i + 1)
+                let scanner = new Html5QrcodeScanner(
+                    "reader",
+                    { fps: 10, qrbox: 250 },
+                    false
+                );
+                scanner.render(onScanSuccess);
+                </script>
+                """, height=400)
 
-                    success, data = decode_qr(image)
+                qr_data = st.text_area("Scanned QR Result")
 
-                    if success:
-                        if data.startswith("upi://"):
-                            status.success(f"✅ UPI QR Detected\n\n{data}")
-                        else:
-                            status.success(f"✅ QR Detected\n\n{data}")
+                if qr_data:
+                    st.session_state.qr_result = qr_data
 
-                        st.balloons()
+                    if qr_data.startswith("upi://"):
+                        st.success("✅ UPI QR Detected")
                     else:
-                        status.error("❌ QR not detected properly\nTry better lighting or alignment")
-
-                    st.image(image)
-
-                st.caption("Align QR inside scan zone")
+                        st.success("✅ QR Detected")
 
             # ---------- PAY ----------
             elif st.session_state.popup == "pay":
                 st.subheader("Pay Anyone")
 
-                upi = st.text_input("UPI ID")
+                upi = st.text_input("UPI ID", value=st.session_state.qr_result)
                 amt = st.number_input("Amount ₹", min_value=1.0)
 
                 if st.button("Send"):
