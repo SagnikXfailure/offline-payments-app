@@ -21,11 +21,11 @@ if "profile" not in st.session_state:
         "mask": "XXXX 1234"
     }
 
-# ---------- CSS (FIXED) ----------
+# ---------- CSS (FULL FIX) ----------
 st.markdown("""
 <style>
 
-body {background:#f5f7fb;font-family:Inter;}
+body {background:#0b1220;font-family:Inter;}
 #MainMenu, footer, header {visibility:hidden;}
 
 .block-container {
@@ -42,14 +42,13 @@ body {background:#f5f7fb;font-family:Inter;}
     color:white;
 }
 
-/* BALANCE CARD (FIXED) */
+/* BALANCE CARD */
 .balance {
     background:white;
     padding:22px;
     border-radius:16px;
     box-shadow:0 6px 18px rgba(0,0,0,0.1);
-    margin-top:0px; /* FIX alignment */
-    color:#202124;  /* FIX text visibility */
+    color:#202124;
 }
 
 .balance h2 {
@@ -80,13 +79,31 @@ body {background:#f5f7fb;font-family:Inter;}
     margin:auto;
 }
 
-/* CARD */
+/* CARD FIX (IMPORTANT) */
 .card {
     background:white;
     padding:16px;
     border-radius:14px;
     margin-top:12px;
     box-shadow:0 4px 12px rgba(0,0,0,0.06);
+    color:#202124;
+}
+
+/* TEXT FIX */
+.title {
+    font-weight:600;
+    color:#202124;
+}
+
+.subtitle {
+    font-size:12px;
+    color:#5f6368;
+}
+
+.amount {
+    float:right;
+    color:#ea4335;
+    font-weight:600;
 }
 
 /* SUCCESS */
@@ -95,7 +112,7 @@ body {background:#f5f7fb;font-family:Inter;}
     background:white;
     padding:25px;
     border-radius:16px;
-    box-shadow:0 6px 18px rgba(0,0,0,0.1);
+    color:#202124;
 }
 
 /* BUTTON */
@@ -105,23 +122,13 @@ body {background:#f5f7fb;font-family:Inter;}
     background:#1a73e8;
 }
 
-/* -------- RESPONSIVE -------- */
-
+/* RESPONSIVE */
 @media (max-width: 900px) {
-    .grid {
-        grid-template-columns: repeat(3,1fr);
-    }
+    .grid {grid-template-columns: repeat(3,1fr);}
 }
 
 @media (max-width: 600px) {
-    .grid {
-        grid-template-columns: repeat(2,1fr);
-    }
-
-    .header {
-        padding:18px;
-        border-radius:0 0 20px 20px;
-    }
+    .grid {grid-template-columns: repeat(2,1fr);}
 }
 
 </style>
@@ -154,26 +161,15 @@ with home:
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("### 🧩 Services")
-        st.markdown("""
-        <div class="grid">
-            <div><div class="icon">🏬</div>Businesses</div>
-            <div><div class="icon">🎁</div>Offers</div>
-            <div><div class="icon">📊</div>Money</div>
-            <div><div class="icon">🏦</div>Balance</div>
-            <div><div class="icon">📜</div>History</div>
-        </div>
-        """, unsafe_allow_html=True)
-
         st.markdown("### 📊 Recent Activity")
 
         if st.session_state.transactions:
             for tx in st.session_state.transactions[:5]:
                 st.markdown(f"""
                 <div class="card">
-                    <b>{tx['to']}</b>
-                    <div style="float:right;color:red;">-₹{tx['amt']:,.2f}</div>
-                    <div style="font-size:12px;color:gray;">{tx['date']}</div>
+                    <span class="title">{tx['to']}</span>
+                    <span class="amount">-₹{tx['amt']:,.2f}</span>
+                    <div class="subtitle">{tx['date']}</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
@@ -182,7 +178,7 @@ with home:
     with col2:
         st.markdown(f"""
         <div class="balance">
-            <div>Available Balance</div>
+            <div class="subtitle">Available Balance</div>
             <h2>₹{st.session_state.balance:,.2f}</h2>
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
@@ -234,11 +230,9 @@ with history:
         for tx in st.session_state.transactions:
             st.markdown(f"""
             <div class="card">
-                {tx['to']}
-                <div style="float:right;color:red;">₹{tx['amt']:,.2f}</div>
-                <div style="font-size:12px;color:gray;">
-                    {tx['date']} • {tx['id']}
-                </div>
+                <span class="title">{tx['to']}</span>
+                <span class="amount">₹{tx['amt']:,.2f}</span>
+                <div class="subtitle">{tx['date']} • {tx['id']}</div>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -250,9 +244,9 @@ with profile:
     p = st.session_state.profile
 
     st.markdown(f"""
-    <div class="card" style="text-align:center;">
-        <h3>{p['name']}</h3>
-        <p>{p['upi']}</p>
-        <p>{p['bank']} • {p['mask']}</p>
+    <div class="card">
+        <h3 class="title">{p['name']}</h3>
+        <p class="subtitle">{p['upi']}</p>
+        <p class="subtitle">{p['bank']} • {p['mask']}</p>
     </div>
     """, unsafe_allow_html=True)
