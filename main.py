@@ -56,27 +56,6 @@ body {background:#0b1220;font-family:Inter;}
 
 .balance h2 {color:#1a73e8;}
 
-.stButton button {
-    background: transparent;
-    border: none;
-    color: white;
-    font-size: 14px;
-    padding: 10px;
-}
-
-.stButton button::first-line {
-    display: block;
-    font-size: 24px;
-    background: #e8f0fe;
-    color: black;
-    border-radius: 16px;
-    width: 55px;
-    height: 55px;
-    line-height: 55px;
-    margin: auto;
-    margin-bottom: 6px;
-}
-
 .card {
     background:white;padding:16px;border-radius:14px;margin-top:12px;color:#202124;
 }
@@ -87,20 +66,6 @@ body {background:#0b1220;font-family:Inter;}
     border-radius:16px;
     margin-top:20px;
     box-shadow:0 10px 30px rgba(0,0,0,0.4);
-}
-
-/* SCAN LINE */
-.scan-line {
-    position:absolute;
-    width:100%;
-    height:2px;
-    background:#00ffcc;
-    animation: scan 2s infinite;
-}
-
-@keyframes scan {
-    0% {top:0;}
-    100% {top:100%;}
 }
 </style>
 """, unsafe_allow_html=True)
@@ -155,23 +120,36 @@ with home:
                 st.subheader("QR Scanner")
 
                 components.html("""
-                <div style="position:relative">
-                    <div id="reader" style="width:100%"></div>
-                    <div class="scan-line"></div>
+                <div style="position:relative; width:100%;">
+
+                    <div id="reader" style="width:100%;"></div>
+
+                    <div style="
+                        position:absolute;
+                        top:0;
+                        left:0;
+                        width:100%;
+                        height:2px;
+                        background:#00ffcc;
+                        animation:scan 2s infinite;
+                    "></div>
+
                 </div>
 
                 <script src="https://unpkg.com/html5-qrcode"></script>
 
+                <script>
                 function sendToStreamlit(data){
-                    const textarea = window.parent.document.querySelector("textarea");
+                    const textarea = window.parent.document.querySelector('textarea');
                     if(textarea){
                         textarea.value = data;
-                        textarea.dispatchEvent(new Event("input",{bubbles:true}));
+                        textarea.dispatchEvent(new Event('input',{bubbles:true}));
                     }
                 }
 
                 function onScanSuccess(decodedText) {
                     sendToStreamlit(decodedText);
+                    scanner.clear();
                 }
 
                 let scanner = new Html5QrcodeScanner(
@@ -181,28 +159,34 @@ with home:
                 );
 
                 scanner.render(onScanSuccess);
-                """, height=400)
+
+                const style = document.createElement('style');
+                style.innerHTML = `
+                @keyframes scan {
+                    0% { top:0; }
+                    100% { top:100%; }
+                }`;
+                document.head.appendChild(style);
+
+                </script>
+                """, height=420)
 
                 qr_data = st.text_area("QR Result")
 
                 if qr_data:
 
                     st.session_state.qr_result = qr_data
-
                     result = validate_qr(qr_data)
-
-                    # ---------- AUTO CLOSE + REDIRECT ----------
-                    st.session_state.popup = "pay"
 
                     if result == "upi":
                         st.success("✅ UPI QR Detected")
-
                     elif result == "suspicious":
                         st.warning("⚠️ Suspicious QR (URL detected)")
-
                     else:
                         st.error("❌ Invalid QR")
 
+                    # Auto close + redirect
+                    st.session_state.popup = "pay"
                     st.rerun()
 
             # ---------- PAY ----------
@@ -269,3 +253,30 @@ with home:
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
+
+# ---------- HISTORY ----------
+with history:
+    st.subheader("All Transactions")
+
+    for tx in st.session_state.transactions:
+        st.markdown(f"""
+        <div class="card">
+            <b>{tx['to']}</b>
+            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
+            <div style="font-size:12px;color:gray;">
+                {tx['date']} • {tx['id']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ---------- PROFILE ----------
+with profile:
+    p = st.session_state.profile
+
+    st.markdown(f"""
+    <div class="card">
+        <h3>{p['name']}</h3>
+        <p>{p['upi']}</p>
+        <p>{p['bank']} • {p['mask']}</p>
+    </div>
+    """, unsafe_allow_html=True)
