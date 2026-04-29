@@ -1,6 +1,9 @@
 import streamlit as st
 from datetime import datetime
 import random
+import cv2
+import numpy as np
+from pyzbar.pyzbar import decode
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -113,84 +116,117 @@ with home:
             st.session_state.popup = "bills"
 
         # ---------- POPUPS ----------
-
         if st.session_state.popup:
 
             st.markdown('<div class="popup">', unsafe_allow_html=True)
 
-            # CLOSE BUTTON
             if st.button("❌ Close"):
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- QR SCANNER ----------
+            # ---------- ADVANCED QR SCANNER ----------
             if st.session_state.popup == "scan":
-                st.subheader("Scan QR Code")
-                img = st.camera_input("Scan QR")
 
-                if img:
-                    st.success("QR Scanned Successfully")
+                st.subheader("Live QR Scanner")
 
-            # ---------- PAY ANYONE ----------
+                start = st.checkbox("Start Scanner")
+                frame_window = st.empty()
+                status = st.empty()
+
+                if start:
+                    cap = cv2.VideoCapture(0)
+
+                    while start:
+                        ret, frame = cap.read()
+                        if not ret:
+                            status.error("Camera error")
+                            break
+
+                        frame = cv2.flip(frame, 1)
+                        h, w, _ = frame.shape
+
+                        # Scan box
+                        size = 250
+                        x1, y1 = w//2 - size//2, h//2 - size//2
+                        x2, y2 = w//2 + size//2, h//2 + size//2
+
+                        # Dark overlay
+                        overlay = frame.copy()
+                        cv2.rectangle(overlay, (0,0),(w,h),(0,0,0),-1)
+                        frame = cv2.addWeighted(overlay,0.5,frame,0.5,0)
+
+                        # Clear center
+                        frame[y1:y2, x1:x2] = overlay[y1:y2, x1:x2]
+
+                        # Draw scan border
+                        color = (255,255,255)
+
+                        decoded = decode(frame)
+                        detected = False
+
+                        for obj in decoded:
+                            x, y, w_box, h_box = obj.rect
+
+                            if x1 < x < x2 and y1 < y < y2:
+                                detected = True
+                                color = (0,255,0)
+
+                                data = obj.data.decode("utf-8")
+                                status.success(f"QR Detected: {data}")
+
+                                cv2.rectangle(frame,(x,y),(x+w_box,y+h_box),(0,255,0),2)
+
+                            else:
+                                color = (0,0,255)
+                                status.warning("Move QR into scan box")
+
+                        cv2.rectangle(frame,(x1,y1),(x2,y2),color,3)
+
+                        frame_window.image(frame, channels="BGR")
+
+                    cap.release()
+
+            # ---------- PAY ----------
             elif st.session_state.popup == "pay":
                 st.subheader("Pay Anyone")
 
-                upi = st.text_input("UPI ID / Phone")
+                upi = st.text_input("UPI ID")
                 amt = st.number_input("Amount ₹", min_value=1.0)
-                note = st.text_input("Note")
 
-                if st.button("Send Money"):
+                if st.button("Send"):
                     if amt > st.session_state.balance:
                         st.error("Insufficient balance")
                     else:
                         st.session_state.balance -= amt
-                        txid = f"T{random.randint(100000,999999)}"
-
-                        st.session_state.transactions.insert(0,{
-                            "to": upi,
-                            "amt": amt,
-                            "date": datetime.now().strftime("%d %b %I:%M %p"),
-                            "id": txid
-                        })
-
                         st.success("Payment Successful")
 
             # ---------- RECHARGE ----------
             elif st.session_state.popup == "recharge":
-                st.subheader("Mobile Recharge")
+                st.subheader("Recharge")
 
-                number = st.text_input("Mobile Number")
-                operator = st.selectbox("Operator", ["Jio", "Airtel", "Vi"])
-                amt = st.number_input("Recharge Amount ₹", min_value=10.0)
+                num = st.text_input("Mobile")
+                amt = st.number_input("Amount", min_value=10.0)
 
                 if st.button("Recharge"):
                     if amt > st.session_state.balance:
                         st.error("Insufficient balance")
                     else:
                         st.session_state.balance -= amt
-                        st.success("Recharge Successful")
-
-            # ---------- PLACEHOLDERS ----------
-            elif st.session_state.popup == "bank":
-                st.info("Bank Transfer UI coming soon")
-
-            elif st.session_state.popup == "bills":
-                st.info("Bill Payment UI coming soon")
+                        st.success("Recharge Done")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
         # ---------- RECENT ----------
         st.markdown("### 📊 Recent Activity")
 
-        if st.session_state.transactions:
-            for tx in st.session_state.transactions[:5]:
-                st.markdown(f"""
-                <div class="card">
-                    <b>{tx['to']}</b>
-                    <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
-                    <div style="font-size:12px;color:gray;">{tx['date']}</div>
-                </div>
-                """, unsafe_allow_html=True)
+        for tx in st.session_state.transactions[:5]:
+            st.markdown(f"""
+            <div class="card">
+                <b>{tx['to']}</b>
+                <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
+                <div style="font-size:12px;color:gray;">{tx['date']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
@@ -200,30 +236,3 @@ with home:
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
-
-# ---------- HISTORY ----------
-with history:
-    st.subheader("All Transactions")
-
-    for tx in st.session_state.transactions:
-        st.markdown(f"""
-        <div class="card">
-            <b>{tx['to']}</b>
-            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
-            <div style="font-size:12px;color:gray;">
-                {tx['date']} • {tx['id']}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ---------- PROFILE ----------
-with profile:
-    p = st.session_state.profile
-
-    st.markdown(f"""
-    <div class="card">
-        <h3>{p['name']}</h3>
-        <p>{p['upi']}</p>
-        <p>{p['bank']} • {p['mask']}</p>
-    </div>
-    """, unsafe_allow_html=True)
