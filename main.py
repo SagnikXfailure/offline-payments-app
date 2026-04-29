@@ -3,9 +3,18 @@ import pandas as pd
 from datetime import datetime
 import random
 import time
-import re
+import base64
+import os
 
 st.set_page_config(page_title="GPay Clone", page_icon="💳", layout="centered")
+
+# ---------- HELPER: LOAD IMAGE AS BASE64 ----------
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except Exception:
+        return None
 
 # ---------- SESSION STATE ----------
 if "balance" not in st.session_state:
@@ -24,7 +33,6 @@ if "profile" not in st.session_state:
     }
 
 # ---------- CSS & STYLING ----------
-# We use custom CSS to simulate a mobile app layout and match the Google Pay theme
 st.markdown("""
 <style>
     /* Simulate a mobile screen width */
@@ -35,9 +43,7 @@ st.markdown("""
     }
     
     /* App Background */
-    .stApp {
-        background-color: #ffffff;
-    }
+    .stApp { background-color: #ffffff; }
 
     /* Hide Streamlit elements */
     #MainMenu, footer, header { visibility: hidden; }
@@ -65,7 +71,7 @@ st.markdown("""
     }
     .search-box img { width: 30px; height: 30px; border-radius: 50%; }
 
-    /* Promo Banner */
+    /* Original Promo Banner (Fallback) */
     .promo-banner {
         text-align: center;
         padding: 20px 0;
@@ -169,6 +175,28 @@ tab_home, tab_pay, tab_history, tab_profile = st.tabs(
 
 # ---------- 1. HOME (GPAY CLONE UI) ----------
 with tab_home:
+    
+    # Process Banner Image dynamically
+    image_filename = "watermarked_img_6238150401824861611.png"
+    banner_b64 = get_base64_image(image_filename)
+    
+    if banner_b64:
+        # If image is found, render it neatly
+        promo_html = f"""
+        <div style="margin-top: 20px; text-align: center;">
+            <img src="data:image/png;base64,{banner_b64}" 
+                 style="width: 100%; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); object-fit: cover;">
+        </div>
+        """
+    else:
+        # Fallback to the original text banner if image isn't downloaded yet
+        promo_html = """
+        <div class="promo-banner">
+            <h3>Instant loans up to ₹8 lakhs</h3>
+            <button class="promo-btn">Apply now ></button>
+        </div>
+        """
+
     st.markdown(f"""
     <div class="gpay-header">
         <div style="display: flex; justify-content: space-between; font-size: 12px; color: #202124; font-weight: 500;">
@@ -181,10 +209,8 @@ with tab_home:
             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Abhi" alt="Profile">
         </div>
         
-        <div class="promo-banner">
-            <h3>Instant loans up to ₹8 lakhs</h3>
-            <button class="promo-btn">Apply now ></button>
-        </div>
+        {promo_html}
+        
     </div>
     
     <div class="action-grid">
