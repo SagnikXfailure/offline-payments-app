@@ -4,6 +4,7 @@ import random
 import time
 import numpy as np
 from PIL import Image
+from pyzxing import BarCodeReader
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -25,26 +26,6 @@ if "profile" not in st.session_state:
 
 if "popup" not in st.session_state:
     st.session_state.popup = None
-
-# ---------- QR VALIDATION FUNCTION ----------
-def is_valid_qr(image):
-    try:
-        arr = np.array(image.convert("L"))
-
-        # contrast check
-        if arr.std() < 25:
-            return False, "Low contrast image"
-
-        # edge density check
-        edges = np.abs(np.diff(arr, axis=0)).mean() + np.abs(np.diff(arr, axis=1)).mean()
-
-        if edges < 10:
-            return False, "No QR-like structure detected"
-
-        return True, "QR-like structure detected"
-
-    except:
-        return False, "Processing error"
 
 # ---------- CSS ----------
 st.markdown("""
@@ -157,18 +138,30 @@ with home:
                 if img:
                     image = Image.open(img)
 
-                    # scanning animation
+                    # Save temp file
+                    image_path = "temp_qr.png"
+                    image.save(image_path)
+
+                    # Scan animation
                     for i in range(100):
                         time.sleep(0.01)
                         progress.progress(i + 1)
 
-                    valid, msg = is_valid_qr(image)
+                    reader = BarCodeReader()
+                    result = reader.decode(image_path)
 
-                    if valid:
-                        status.success(f"✅ {msg}")
+                    if result and result[0].get("parsed"):
+                        data = result[0]["parsed"]
+
+                        if data.startswith("upi://"):
+                            status.success(f"✅ UPI QR Detected\n\n{data}")
+                        else:
+                            status.success(f"✅ QR Detected\n\n{data}")
+
                         st.balloons()
+
                     else:
-                        status.error(f"❌ {msg}")
+                        status.error("❌ Not a valid QR or unclear image")
 
                     st.image(image)
 
@@ -186,6 +179,16 @@ with home:
                         st.error("Insufficient balance")
                     else:
                         st.session_state.balance -= amt
+
+                        txid = f"T{random.randint(100000,999999)}"
+
+                        st.session_state.transactions.insert(0,{
+                            "to": upi,
+                            "amt": amt,
+                            "date": datetime.now().strftime("%d %b %I:%M %p"),
+                            "id": txid
+                        })
+
                         st.success("Payment Successful")
 
             # ---------- RECHARGE ----------
@@ -224,3 +227,30 @@ with home:
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
+
+# ---------- HISTORY ----------
+with history:
+    st.subheader("All Transactions")
+
+    for tx in st.session_state.transactions:
+        st.markdown(f"""
+        <div class="card">
+            <b>{tx['to']}</b>
+            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
+            <div style="font-size:12px;color:gray;">
+                {tx['date']} • {tx['id']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ---------- PROFILE ----------
+with profile:
+    p = st.session_state.profile
+
+    st.markdown(f"""
+    <div class="card">
+        <h3>{p['name']}</h3>
+        <p>{p['upi']}</p>
+        <p>{p['bank']} • {p['mask']}</p>
+    </div>
+    """, unsafe_allow_html=True)
