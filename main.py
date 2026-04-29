@@ -2,6 +2,8 @@ import streamlit as st
 from datetime import datetime
 import random
 import time
+import numpy as np
+from PIL import Image
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -23,6 +25,26 @@ if "profile" not in st.session_state:
 
 if "popup" not in st.session_state:
     st.session_state.popup = None
+
+# ---------- QR VALIDATION FUNCTION ----------
+def is_valid_qr(image):
+    try:
+        arr = np.array(image.convert("L"))
+
+        # contrast check
+        if arr.std() < 25:
+            return False, "Low contrast image"
+
+        # edge density check
+        edges = np.abs(np.diff(arr, axis=0)).mean() + np.abs(np.diff(arr, axis=1)).mean()
+
+        if edges < 10:
+            return False, "No QR-like structure detected"
+
+        return True, "QR-like structure detected"
+
+    except:
+        return False, "Processing error"
 
 # ---------- CSS ----------
 st.markdown("""
@@ -122,7 +144,7 @@ with home:
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- SMOOTH QR UI ----------
+            # ---------- QR SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
@@ -133,16 +155,22 @@ with home:
                 status = st.empty()
 
                 if img:
+                    image = Image.open(img)
+
+                    # scanning animation
                     for i in range(100):
                         time.sleep(0.01)
                         progress.progress(i + 1)
 
-                    # Fake detection logic (since no decoder)
-                    if random.choice([True, False]):
-                        status.success("✅ QR Detected Successfully")
+                    valid, msg = is_valid_qr(image)
+
+                    if valid:
+                        status.success(f"✅ {msg}")
                         st.balloons()
                     else:
-                        status.error("❌ Improper QR Position - Adjust and Retry")
+                        status.error(f"❌ {msg}")
+
+                    st.image(image)
 
                 st.caption("Align QR inside scan zone")
 
