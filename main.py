@@ -3,7 +3,7 @@ from datetime import datetime
 import random
 import time
 
-# ---------- PAGE CONFIG (FIXED) ----------
+# ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
 
 # ---------- SESSION ----------
@@ -21,7 +21,7 @@ if "profile" not in st.session_state:
         "mask": "XXXX 1234"
     }
 
-# ---------- RESPONSIVE CSS ----------
+# ---------- CSS (FIXED) ----------
 st.markdown("""
 <style>
 
@@ -42,13 +42,23 @@ body {background:#f5f7fb;font-family:Inter;}
     color:white;
 }
 
-/* BALANCE CARD */
+/* BALANCE CARD (FIXED) */
 .balance {
     background:white;
-    padding:20px;
+    padding:22px;
     border-radius:16px;
-    margin-top:-40px;
     box-shadow:0 6px 18px rgba(0,0,0,0.1);
+    margin-top:0px; /* FIX alignment */
+    color:#202124;  /* FIX text visibility */
+}
+
+.balance h2 {
+    color:#1a73e8;
+    margin:10px 0;
+}
+
+.balance small {
+    color:#5f6368;
 }
 
 /* GRID */
@@ -97,14 +107,12 @@ body {background:#f5f7fb;font-family:Inter;}
 
 /* -------- RESPONSIVE -------- */
 
-/* Tablet */
 @media (max-width: 900px) {
     .grid {
         grid-template-columns: repeat(3,1fr);
     }
 }
 
-/* Mobile */
 @media (max-width: 600px) {
     .grid {
         grid-template-columns: repeat(2,1fr);
@@ -113,10 +121,6 @@ body {background:#f5f7fb;font-family:Inter;}
     .header {
         padding:18px;
         border-radius:0 0 20px 20px;
-    }
-
-    .balance {
-        margin-top:-30px;
     }
 }
 
@@ -129,7 +133,7 @@ home, pay, history, profile = st.tabs(["🏠 Home", "💸 Pay", "📊 History", 
 # ---------- HOME ----------
 with home:
 
-    col1, col2 = st.columns([2,1])
+    col1, col2 = st.columns([2.2, 1], gap="large")
 
     with col1:
         st.markdown(f"""
