@@ -27,24 +27,13 @@ if "popup" not in st.session_state:
 if "qr_result" not in st.session_state:
     st.session_state.qr_result = ""
 
-# ---------- FRAUD DETECTION ----------
-def validate_qr(data):
-    if not data:
-        return "invalid"
-
-    if data.startswith("upi://"):
-        return "valid_upi"
-
-    if data.startswith("http"):
-        return "suspicious_url"
-
-    return "unknown"
-
 # ---------- CSS ----------
 st.markdown("""
 <style>
 body {background:#0b1220;font-family:Inter;}
 #MainMenu, footer, header {visibility:hidden;}
+
+.block-container {max-width:1200px;padding:20px;margin:auto;}
 
 .header {
     background: linear-gradient(135deg,#1a73e8,#4285f4);
@@ -57,22 +46,37 @@ body {background:#0b1220;font-family:Inter;}
 
 .balance h2 {color:#1a73e8;}
 
+.stButton button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 14px;
+    padding: 10px;
+}
+
+.stButton button::first-line {
+    display: block;
+    font-size: 24px;
+    background: #e8f0fe;
+    color: black;
+    border-radius: 16px;
+    width: 55px;
+    height: 55px;
+    line-height: 55px;
+    margin: auto;
+    margin-bottom: 6px;
+}
+
 .card {
     background:white;padding:16px;border-radius:14px;margin-top:12px;color:#202124;
 }
 
-/* SCANNER ANIMATION */
-.scan-line {
-    position:absolute;
-    width:100%;
-    height:2px;
-    background:red;
-    animation: scan 2s infinite;
-}
-
-@keyframes scan {
-    0% {top:0;}
-    100% {top:100%;}
+.popup {
+    background:white;
+    padding:20px;
+    border-radius:16px;
+    margin-top:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -103,39 +107,44 @@ with home:
         if c2.button("👤\nPay Anyone"):
             st.session_state.popup = "pay"
 
+        if c3.button("🏦\nBank Transfer"):
+            st.session_state.popup = "bank"
+
         if c4.button("⚡\nRecharge"):
             st.session_state.popup = "recharge"
 
+        if c5.button("🧾\nPay Bills"):
+            st.session_state.popup = "bills"
+
         # ---------- POPUPS ----------
         if st.session_state.popup:
+
+            st.markdown('<div class="popup">', unsafe_allow_html=True)
 
             if st.button("❌ Close"):
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- SCANNER ----------
+            # ---------- REAL QR SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
 
                 components.html("""
-                <div style="position:relative">
-                    <div id="reader" style="width:100%"></div>
-                    <div class="scan-line"></div>
-                </div>
+                <div id="reader" style="width:100%"></div>
 
                 <script src="https://unpkg.com/html5-qrcode"></script>
 
-                function sendData(data){
-                    const textArea = window.parent.document.querySelector("textarea");
-                    if(textArea){
-                        textArea.value = data;
-                        textArea.dispatchEvent(new Event("input",{bubbles:true}));
-                    }
-                }
-
+                <script>
                 function onScanSuccess(decodedText) {
-                    sendData(decodedText);
+                    const streamlitEvent = new Event("input", {
+                        bubbles: true
+                    });
+                    const textArea = window.parent.document.querySelector("textarea");
+                    if (textArea) {
+                        textArea.value = decodedText;
+                        textArea.dispatchEvent(streamlitEvent);
+                    }
                 }
 
                 let scanner = new Html5QrcodeScanner(
@@ -144,40 +153,27 @@ with home:
                     false
                 );
                 scanner.render(onScanSuccess);
+                </script>
                 """, height=400)
 
-                qr_data = st.text_area("QR Result")
+                qr_data = st.text_area("Scanned QR Result")
 
                 if qr_data:
-
                     st.session_state.qr_result = qr_data
 
-                    result = validate_qr(qr_data)
-
-                    # ---------- AUTO CLOSE ----------
-                    st.session_state.popup = "pay"
-
-                    if result == "valid_upi":
+                    if qr_data.startswith("upi://"):
                         st.success("✅ UPI QR Detected")
-
-                    elif result == "suspicious_url":
-                        st.warning("⚠️ Suspicious QR (URL detected)")
-
                     else:
-                        st.error("❌ Invalid QR")
-
-                    st.rerun()
+                        st.success("✅ QR Detected")
 
             # ---------- PAY ----------
             elif st.session_state.popup == "pay":
-
                 st.subheader("Pay Anyone")
 
                 upi = st.text_input("UPI ID", value=st.session_state.qr_result)
                 amt = st.number_input("Amount ₹", min_value=1.0)
 
                 if st.button("Send"):
-
                     if amt > st.session_state.balance:
                         st.error("Insufficient balance")
                     else:
@@ -196,19 +192,19 @@ with home:
 
             # ---------- RECHARGE ----------
             elif st.session_state.popup == "recharge":
-
                 st.subheader("Recharge")
 
                 num = st.text_input("Mobile")
                 amt = st.number_input("Amount", min_value=10.0)
 
                 if st.button("Recharge"):
-
                     if amt > st.session_state.balance:
                         st.error("Insufficient balance")
                     else:
                         st.session_state.balance -= amt
                         st.success("Recharge Done")
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # ---------- RECENT ----------
         st.markdown("### 📊 Recent Activity")
@@ -230,3 +226,30 @@ with home:
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
+
+# ---------- HISTORY ----------
+with history:
+    st.subheader("All Transactions")
+
+    for tx in st.session_state.transactions:
+        st.markdown(f"""
+        <div class="card">
+            <b>{tx['to']}</b>
+            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
+            <div style="font-size:12px;color:gray;">
+                {tx['date']} • {tx['id']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ---------- PROFILE ----------
+with profile:
+    p = st.session_state.profile
+
+    st.markdown(f"""
+    <div class="card">
+        <h3>{p['name']}</h3>
+        <p>{p['upi']}</p>
+        <p>{p['bank']} • {p['mask']}</p>
+    </div>
+    """, unsafe_allow_html=True)
