@@ -50,11 +50,28 @@ body {background:#0b1220;font-family:Inter;}
     gap:20px;margin-top:20px;text-align:center;
 }
 
-.icon {
-    width:55px;height:55px;border-radius:16px;
-    background:#e8f0fe;
-    display:flex;align-items:center;justify-content:center;
-    margin:auto;
+/* BUTTONS styled as tiles */
+.stButton button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 14px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+/* icon block */
+.stButton button::first-line {
+    display: block;
+    font-size: 24px;
+    background: #e8f0fe;
+    color: black;
+    border-radius: 16px;
+    width: 55px;
+    height: 55px;
+    line-height: 55px;
+    margin: auto;
+    margin-bottom: 6px;
 }
 
 .card {
@@ -65,7 +82,6 @@ body {background:#0b1220;font-family:Inter;}
 .title {font-weight:600;}
 .subtitle {font-size:12px;color:#5f6368;}
 .amount {float:right;color:#ea4335;}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,55 +103,37 @@ with home:
 
         st.markdown("### 💸 Quick Actions")
 
-        # VISUAL UI (UNCHANGED)
-        st.markdown("""
-        <div class="grid">
-            <div><div class="icon">📷</div>Scan QR</div>
-            <div><div class="icon">👤</div>Pay Anyone</div>
-            <div><div class="icon">🏦</div>Bank Transfer</div>
-            <div><div class="icon">⚡</div>Recharge</div>
-            <div><div class="icon">🧾</div>Pay Bills</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # INVISIBLE BUTTON LAYER
         c1, c2, c3, c4, c5 = st.columns(5)
 
-        if c1.button(" ", key="scan"):
-            st.session_state.action = "scan"
+        def action_btn(col, icon, label, key, action):
+            with col:
+                if st.button(f"{icon}\n{label}", key=key):
+                    st.session_state.action = action
 
-        if c2.button(" ", key="pay_anyone"):
-            st.session_state.action = "pay"
-
-        if c3.button(" ", key="bank"):
-            st.session_state.action = "bank"
-
-        if c4.button(" ", key="recharge"):
-            st.session_state.action = "recharge"
-
-        if c5.button(" ", key="bills"):
-            st.session_state.action = "bills"
+        action_btn(c1, "📷", "Scan QR", "scan", "scan")
+        action_btn(c2, "👤", "Pay Anyone", "pay", "pay")
+        action_btn(c3, "🏦", "Bank Transfer", "bank", "bank")
+        action_btn(c4, "⚡", "Recharge", "recharge", "recharge")
+        action_btn(c5, "🧾", "Pay Bills", "bills", "bills")
 
         # ---------- ACTION RESPONSE ----------
         if st.session_state.action:
-
             st.markdown("### ⚡ Action")
 
             if st.session_state.action == "scan":
                 st.info("📷 QR Scanner coming soon")
 
             elif st.session_state.action == "pay":
-                st.session_state.current_tab = 1
-                st.switch_page
+                st.info("👤 Go to Pay tab to send money")
 
             elif st.session_state.action == "bank":
-                st.info("🏦 Bank Transfer UI coming soon")
+                st.info("🏦 Bank Transfer coming soon")
 
             elif st.session_state.action == "recharge":
-                st.info("⚡ Recharge feature coming soon")
+                st.info("⚡ Recharge coming soon")
 
             elif st.session_state.action == "bills":
-                st.info("🧾 Bill payment feature coming soon")
+                st.info("🧾 Bill payment coming soon")
 
         # ---------- RECENT ----------
         st.markdown("### 📊 Recent Activity")
