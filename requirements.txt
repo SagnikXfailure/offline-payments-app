@@ -5,3 +5,4 @@ pyzbar
 numpy
 Pillow
 pyzxing
+opencv-python-headless
