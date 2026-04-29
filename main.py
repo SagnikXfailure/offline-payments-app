@@ -1,7 +1,6 @@
 import streamlit as st
 from datetime import datetime
 import random
-import time
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -21,8 +20,8 @@ if "profile" not in st.session_state:
         "mask": "XXXX 1234"
     }
 
-if "action" not in st.session_state:
-    st.session_state.action = None
+if "popup" not in st.session_state:
+    st.session_state.popup = None
 
 # ---------- CSS ----------
 st.markdown("""
@@ -38,29 +37,19 @@ body {background:#0b1220;font-family:Inter;}
 }
 
 .balance {
-    background:white;padding:22px;border-radius:16px;
-    color:#202124;
+    background:white;padding:22px;border-radius:16px;color:#202124;
 }
 
 .balance h2 {color:#1a73e8;}
 
-.grid {
-    display:grid;
-    grid-template-columns:repeat(5,1fr);
-    gap:20px;margin-top:20px;text-align:center;
-}
-
-/* BUTTONS styled as tiles */
 .stButton button {
     background: transparent;
     border: none;
     color: white;
     font-size: 14px;
     padding: 10px;
-    cursor: pointer;
 }
 
-/* icon block */
 .stButton button::first-line {
     display: block;
     font-size: 24px;
@@ -75,13 +64,16 @@ body {background:#0b1220;font-family:Inter;}
 }
 
 .card {
-    background:white;padding:16px;border-radius:14px;
-    margin-top:12px;color:#202124;
+    background:white;padding:16px;border-radius:14px;margin-top:12px;color:#202124;
 }
 
-.title {font-weight:600;}
-.subtitle {font-size:12px;color:#5f6368;}
-.amount {float:right;color:#ea4335;}
+.popup {
+    background:white;
+    padding:20px;
+    border-radius:16px;
+    margin-top:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -91,7 +83,7 @@ home, pay, history, profile = st.tabs(["🏠 Home", "💸 Pay", "📊 History", 
 # ---------- HOME ----------
 with home:
 
-    col1, col2 = st.columns([2.2, 1], gap="large")
+    col1, col2 = st.columns([2.2, 1])
 
     with col1:
         st.markdown(f"""
@@ -105,35 +97,87 @@ with home:
 
         c1, c2, c3, c4, c5 = st.columns(5)
 
-        def action_btn(col, icon, label, key, action):
-            with col:
-                if st.button(f"{icon}\n{label}", key=key):
-                    st.session_state.action = action
+        if c1.button("📷\nScan QR"):
+            st.session_state.popup = "scan"
 
-        action_btn(c1, "📷", "Scan QR", "scan", "scan")
-        action_btn(c2, "👤", "Pay Anyone", "pay", "pay")
-        action_btn(c3, "🏦", "Bank Transfer", "bank", "bank")
-        action_btn(c4, "⚡", "Recharge", "recharge", "recharge")
-        action_btn(c5, "🧾", "Pay Bills", "bills", "bills")
+        if c2.button("👤\nPay Anyone"):
+            st.session_state.popup = "pay"
 
-        # ---------- ACTION RESPONSE ----------
-        if st.session_state.action:
-            st.markdown("### ⚡ Action")
+        if c3.button("🏦\nBank Transfer"):
+            st.session_state.popup = "bank"
 
-            if st.session_state.action == "scan":
-                st.info("📷 QR Scanner coming soon")
+        if c4.button("⚡\nRecharge"):
+            st.session_state.popup = "recharge"
 
-            elif st.session_state.action == "pay":
-                st.info("👤 Go to Pay tab to send money")
+        if c5.button("🧾\nPay Bills"):
+            st.session_state.popup = "bills"
 
-            elif st.session_state.action == "bank":
-                st.info("🏦 Bank Transfer coming soon")
+        # ---------- POPUPS ----------
 
-            elif st.session_state.action == "recharge":
-                st.info("⚡ Recharge coming soon")
+        if st.session_state.popup:
 
-            elif st.session_state.action == "bills":
-                st.info("🧾 Bill payment coming soon")
+            st.markdown('<div class="popup">', unsafe_allow_html=True)
+
+            # CLOSE BUTTON
+            if st.button("❌ Close"):
+                st.session_state.popup = None
+                st.rerun()
+
+            # ---------- QR SCANNER ----------
+            if st.session_state.popup == "scan":
+                st.subheader("Scan QR Code")
+                img = st.camera_input("Scan QR")
+
+                if img:
+                    st.success("QR Scanned Successfully")
+
+            # ---------- PAY ANYONE ----------
+            elif st.session_state.popup == "pay":
+                st.subheader("Pay Anyone")
+
+                upi = st.text_input("UPI ID / Phone")
+                amt = st.number_input("Amount ₹", min_value=1.0)
+                note = st.text_input("Note")
+
+                if st.button("Send Money"):
+                    if amt > st.session_state.balance:
+                        st.error("Insufficient balance")
+                    else:
+                        st.session_state.balance -= amt
+                        txid = f"T{random.randint(100000,999999)}"
+
+                        st.session_state.transactions.insert(0,{
+                            "to": upi,
+                            "amt": amt,
+                            "date": datetime.now().strftime("%d %b %I:%M %p"),
+                            "id": txid
+                        })
+
+                        st.success("Payment Successful")
+
+            # ---------- RECHARGE ----------
+            elif st.session_state.popup == "recharge":
+                st.subheader("Mobile Recharge")
+
+                number = st.text_input("Mobile Number")
+                operator = st.selectbox("Operator", ["Jio", "Airtel", "Vi"])
+                amt = st.number_input("Recharge Amount ₹", min_value=10.0)
+
+                if st.button("Recharge"):
+                    if amt > st.session_state.balance:
+                        st.error("Insufficient balance")
+                    else:
+                        st.session_state.balance -= amt
+                        st.success("Recharge Successful")
+
+            # ---------- PLACEHOLDERS ----------
+            elif st.session_state.popup == "bank":
+                st.info("Bank Transfer UI coming soon")
+
+            elif st.session_state.popup == "bills":
+                st.info("Bill Payment UI coming soon")
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # ---------- RECENT ----------
         st.markdown("### 📊 Recent Activity")
@@ -142,73 +186,44 @@ with home:
             for tx in st.session_state.transactions[:5]:
                 st.markdown(f"""
                 <div class="card">
-                    <span class="title">{tx['to']}</span>
-                    <span class="amount">-₹{tx['amt']:,.2f}</span>
-                    <div class="subtitle">{tx['date']}</div>
+                    <b>{tx['to']}</b>
+                    <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
+                    <div style="font-size:12px;color:gray;">{tx['date']}</div>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.info("No recent transactions yet.")
 
     with col2:
         st.markdown(f"""
         <div class="balance">
-            <div class="subtitle">Available Balance</div>
+            <div>Available Balance</div>
             <h2>₹{st.session_state.balance:,.2f}</h2>
             <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
 
-# ---------- PAY ----------
-with pay:
-
-    st.subheader("Send Money")
-
-    upi = st.text_input("UPI ID / Phone")
-    amt = st.number_input("Amount ₹", min_value=1.0)
-
-    if st.button("Pay Now"):
-
-        if not upi:
-            st.error("Enter UPI ID")
-        elif amt > st.session_state.balance:
-            st.error("Insufficient balance")
-        else:
-            st.session_state.balance -= amt
-            txid = f"T{random.randint(100000,999999)}"
-
-            st.session_state.transactions.insert(0,{
-                "to": upi,
-                "amt": amt,
-                "date": datetime.now().strftime("%d %b %I:%M %p"),
-                "id": txid
-            })
-
-            st.success(f"Paid ₹{amt} to {upi}")
-
 # ---------- HISTORY ----------
 with history:
-
     st.subheader("All Transactions")
 
     for tx in st.session_state.transactions:
         st.markdown(f"""
         <div class="card">
-            <span class="title">{tx['to']}</span>
-            <span class="amount">₹{tx['amt']:,.2f}</span>
-            <div class="subtitle">{tx['date']} • {tx['id']}</div>
+            <b>{tx['to']}</b>
+            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
+            <div style="font-size:12px;color:gray;">
+                {tx['date']} • {tx['id']}
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
 # ---------- PROFILE ----------
 with profile:
-
     p = st.session_state.profile
 
     st.markdown(f"""
     <div class="card">
-        <h3 class="title">{p['name']}</h3>
-        <p class="subtitle">{p['upi']}</p>
-        <p class="subtitle">{p['bank']} • {p['mask']}</p>
+        <h3>{p['name']}</h3>
+        <p>{p['upi']}</p>
+        <p>{p['bank']} • {p['mask']}</p>
     </div>
     """, unsafe_allow_html=True)
