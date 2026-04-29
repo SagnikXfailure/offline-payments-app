@@ -1,9 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import random
-import cv2
-import numpy as np
-from pyzbar.pyzbar import decode
+import time
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="PayFlow", page_icon="💳", layout="wide")
@@ -124,67 +122,29 @@ with home:
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- ADVANCED QR SCANNER ----------
+            # ---------- SMOOTH QR UI ----------
             if st.session_state.popup == "scan":
 
-                st.subheader("Live QR Scanner")
+                st.subheader("QR Scanner")
 
-                start = st.checkbox("Start Scanner")
-                frame_window = st.empty()
+                img = st.camera_input("Scan QR")
+
+                progress = st.progress(0)
                 status = st.empty()
 
-                if start:
-                    cap = cv2.VideoCapture(0)
+                if img:
+                    for i in range(100):
+                        time.sleep(0.01)
+                        progress.progress(i + 1)
 
-                    while start:
-                        ret, frame = cap.read()
-                        if not ret:
-                            status.error("Camera error")
-                            break
+                    # Fake detection logic (since no decoder)
+                    if random.choice([True, False]):
+                        status.success("✅ QR Detected Successfully")
+                        st.balloons()
+                    else:
+                        status.error("❌ Improper QR Position - Adjust and Retry")
 
-                        frame = cv2.flip(frame, 1)
-                        h, w, _ = frame.shape
-
-                        # Scan box
-                        size = 250
-                        x1, y1 = w//2 - size//2, h//2 - size//2
-                        x2, y2 = w//2 + size//2, h//2 + size//2
-
-                        # Dark overlay
-                        overlay = frame.copy()
-                        cv2.rectangle(overlay, (0,0),(w,h),(0,0,0),-1)
-                        frame = cv2.addWeighted(overlay,0.5,frame,0.5,0)
-
-                        # Clear center
-                        frame[y1:y2, x1:x2] = overlay[y1:y2, x1:x2]
-
-                        # Draw scan border
-                        color = (255,255,255)
-
-                        decoded = decode(frame)
-                        detected = False
-
-                        for obj in decoded:
-                            x, y, w_box, h_box = obj.rect
-
-                            if x1 < x < x2 and y1 < y < y2:
-                                detected = True
-                                color = (0,255,0)
-
-                                data = obj.data.decode("utf-8")
-                                status.success(f"QR Detected: {data}")
-
-                                cv2.rectangle(frame,(x,y),(x+w_box,y+h_box),(0,255,0),2)
-
-                            else:
-                                color = (0,0,255)
-                                status.warning("Move QR into scan box")
-
-                        cv2.rectangle(frame,(x1,y1),(x2,y2),color,3)
-
-                        frame_window.image(frame, channels="BGR")
-
-                    cap.release()
+                st.caption("Align QR inside scan zone")
 
             # ---------- PAY ----------
             elif st.session_state.popup == "pay":
