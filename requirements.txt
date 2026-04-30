@@ -6,3 +6,5 @@ numpy
 Pillow
 pyzxing
 opencv-python-headless
+streamlit-webrtc
+av
