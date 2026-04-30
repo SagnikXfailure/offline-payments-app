@@ -27,7 +27,7 @@ if "popup" not in st.session_state:
 if "qr_result" not in st.session_state:
     st.session_state.qr_result = ""
 
-# ---------- QR VALIDATION ----------
+# ---------- VALIDATION ----------
 def validate_qr(data):
     if not data:
         return "invalid"
@@ -54,8 +54,6 @@ body {background:#0b1220;font-family:Inter;}
     background:white;padding:22px;border-radius:16px;color:#202124;
 }
 
-.balance h2 {color:#1a73e8;}
-
 .card {
     background:white;padding:16px;border-radius:14px;margin-top:12px;color:#202124;
 }
@@ -65,24 +63,22 @@ body {background:#0b1220;font-family:Inter;}
     padding:20px;
     border-radius:16px;
     margin-top:20px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.4);
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- NAV ----------
-home, pay, history, profile = st.tabs(["🏠 Home", "💸 Pay", "📊 History", "👤 Profile"])
+home, pay, history, profile = st.tabs(["🏠 Home","💸 Pay","📊 History","👤 Profile"])
 
 # ---------- HOME ----------
 with home:
 
-    col1, col2 = st.columns([2.2, 1])
+    col1, col2 = st.columns([2.2,1])
 
     with col1:
         st.markdown(f"""
         <div class="header">
             <h3>Hello, {st.session_state.profile['name']}</h3>
-            <p>Welcome back</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -105,83 +101,88 @@ with home:
         if c5.button("🧾\nPay Bills"):
             st.session_state.popup = "bills"
 
-        # ---------- POPUPS ----------
+        # ---------- POPUP ----------
         if st.session_state.popup:
 
-            st.markdown('<div class="popup">', unsafe_allow_html=True)
+            st.markdown("<div class='popup'>", unsafe_allow_html=True)
 
             if st.button("❌ Close"):
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- FIXED QR SCANNER ----------
+            # ---------- FIXED SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
 
                 components.html("""
-                <div id="reader" style="width:100%; height:420px; border-radius:16px; overflow:hidden;"></div>
+                <div style="position:relative;width:100%;height:420px;background:black;border-radius:16px;overflow:hidden;">
+                    
+                    <div id="reader" style="width:100%;height:100%;"></div>
 
-                <div style="text-align:center; margin-top:10px;">
-                    <button onclick="startScan()">Start</button>
-                    <button onclick="stopScan()">Stop</button>
-                    <button onclick="switchCamera()">Switch Camera</button>
+                    <div style="
+                        position:absolute;
+                        top:50%;
+                        left:50%;
+                        transform:translate(-50%,-50%);
+                        width:240px;
+                        height:240px;
+                        border:2px solid #00ffcc;
+                        border-radius:16px;
+                    ">
+                        <div style="
+                            position:absolute;
+                            width:100%;
+                            height:2px;
+                            background:#00ffcc;
+                            animation:scan 2s linear infinite;
+                        "></div>
+                    </div>
+
                 </div>
 
                 <script src="https://unpkg.com/html5-qrcode"></script>
 
                 <script>
-                let html5QrCode;
-                let cameras = [];
-                let currentCamera = 0;
-
-                function sendToStreamlit(data){
-                    const textarea = window.parent.document.querySelector('textarea');
-                    if(textarea){
-                        textarea.value = data;
-                        textarea.dispatchEvent(new Event('input',{bubbles:true}));
+                function send(data){
+                    const ta = window.parent.document.querySelector("textarea");
+                    if(ta){
+                        ta.value = data;
+                        ta.dispatchEvent(new Event("input",{bubbles:true}));
                     }
                 }
+
+                const qr = new Html5Qrcode("reader");
 
                 Html5Qrcode.getCameras().then(devices => {
-                    cameras = devices;
-                    html5QrCode = new Html5Qrcode("reader");
+                    if(devices.length){
+                        qr.start(
+                            devices[0].id,
+                            { fps: 10, qrbox: 240 },
+                            (decodedText)=>{
+                                send(decodedText);
+                                qr.stop();
+                            }
+                        );
+                    }
                 });
 
-                function startScan(){
-                    if(!cameras.length) return;
-
-                    html5QrCode.start(
-                        cameras[currentCamera].id,
-                        { fps: 10, qrbox: 250 },
-                        (decodedText) => {
-                            sendToStreamlit(decodedText);
-                            stopScan();
-                        }
-                    );
-                }
-
-                function stopScan(){
-                    if(html5QrCode){
-                        html5QrCode.stop().catch(()=>{});
-                    }
-                }
-
-                function switchCamera(){
-                    if(cameras.length > 1){
-                        currentCamera = (currentCamera + 1) % cameras.length;
-                        stopScan();
-                        setTimeout(startScan, 400);
-                    }
-                }
+                const style = document.createElement("style");
+                style.innerHTML = `
+                @keyframes scan {
+                    0% { top:0 }
+                    100% { top:100% }
+                }`;
+                document.head.appendChild(style);
                 </script>
-                """, height=460)
+                """, height=420)
 
                 qr_data = st.text_area("QR Result")
 
                 if qr_data:
 
                     st.session_state.qr_result = qr_data
+
                     result = validate_qr(qr_data)
 
                     if result == "upi":
@@ -220,68 +221,11 @@ with home:
 
                         st.success("Payment Successful")
 
-            # ---------- RECHARGE ----------
-            elif st.session_state.popup == "recharge":
-
-                st.subheader("Recharge")
-
-                num = st.text_input("Mobile")
-                amt = st.number_input("Amount", min_value=10.0)
-
-                if st.button("Recharge"):
-
-                    if amt > st.session_state.balance:
-                        st.error("Insufficient balance")
-                    else:
-                        st.session_state.balance -= amt
-                        st.success("Recharge Done")
-
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # ---------- RECENT ----------
-        st.markdown("### 📊 Recent Activity")
-
-        for tx in st.session_state.transactions[:5]:
-            st.markdown(f"""
-            <div class="card">
-                <b>{tx['to']}</b>
-                <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
-                <div style="font-size:12px;color:gray;">{tx['date']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
         <div class="balance">
-            <div>Available Balance</div>
             <h2>₹{st.session_state.balance:,.2f}</h2>
-            <small>{st.session_state.profile['bank']} • {st.session_state.profile['mask']}</small>
         </div>
         """, unsafe_allow_html=True)
-
-# ---------- HISTORY ----------
-with history:
-    st.subheader("All Transactions")
-
-    for tx in st.session_state.transactions:
-        st.markdown(f"""
-        <div class="card">
-            <b>{tx['to']}</b>
-            <span style="float:right;color:red;">₹{tx['amt']:,.2f}</span>
-            <div style="font-size:12px;color:gray;">
-                {tx['date']} • {tx['id']}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ---------- PROFILE ----------
-with profile:
-    p = st.session_state.profile
-
-    st.markdown(f"""
-    <div class="card">
-        <h3>{p['name']}</h3>
-        <p>{p['upi']}</p>
-        <p>{p['bank']} • {p['mask']}</p>
-    </div>
-    """, unsafe_allow_html=True)
