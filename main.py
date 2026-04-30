@@ -114,86 +114,27 @@ with home:
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- PREMIUM SCANNER ----------
+            # ---------- FIXED QR SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
 
                 components.html("""
-                <style>
-                .scanner-container {
-                    position:relative;
-                    width:100%;
-                    height:420px;
-                    border-radius:18px;
-                    overflow:hidden;
-                    background:linear-gradient(145deg,#0a0f1f,#05070d);
-                    box-shadow:0 20px 50px rgba(0,0,0,0.6);
-                }
+                <div id="reader" style="width:100%; height:420px; border-radius:16px; overflow:hidden;"></div>
 
-                #reader {
-                    width:100%;
-                    height:100%;
-                }
-
-                .overlay {
-                    position:absolute;
-                    inset:0;
-                    background:rgba(0,0,0,0.6);
-                    pointer-events:none;
-                }
-
-                .scan-box {
-                    position:absolute;
-                    width:240px;
-                    height:240px;
-                    top:50%;
-                    left:50%;
-                    transform:translate(-50%, -50%);
-                    border:2px solid #00ffcc;
-                    border-radius:16px;
-                    box-shadow:0 0 20px rgba(0,255,204,0.5);
-                }
-
-                .scan-line {
-                    position:absolute;
-                    width:100%;
-                    height:2px;
-                    background:#00ffcc;
-                    animation:scan 2s linear infinite;
-                }
-
-                @keyframes scan {
-                    0% { top:0; }
-                    100% { top:100%; }
-                }
-
-                .scan-text {
-                    position:absolute;
-                    bottom:20px;
-                    width:100%;
-                    text-align:center;
-                    color:#aaa;
-                    font-size:14px;
-                }
-                </style>
-
-                <div class="scanner-container">
-                    <div id="reader"></div>
-                    <div class="overlay"></div>
-
-                    <div class="scan-box">
-                        <div class="scan-line"></div>
-                    </div>
-
-                    <div class="scan-text">
-                        Align QR code inside the frame
-                    </div>
+                <div style="text-align:center; margin-top:10px;">
+                    <button onclick="startScan()">Start</button>
+                    <button onclick="stopScan()">Stop</button>
+                    <button onclick="switchCamera()">Switch Camera</button>
                 </div>
 
                 <script src="https://unpkg.com/html5-qrcode"></script>
 
                 <script>
+                let html5QrCode;
+                let cameras = [];
+                let currentCamera = 0;
+
                 function sendToStreamlit(data){
                     const textarea = window.parent.document.querySelector('textarea');
                     if(textarea){
@@ -202,20 +143,39 @@ with home:
                     }
                 }
 
-                function onScanSuccess(decodedText) {
-                    sendToStreamlit(decodedText);
-                    scanner.clear();
+                Html5Qrcode.getCameras().then(devices => {
+                    cameras = devices;
+                    html5QrCode = new Html5Qrcode("reader");
+                });
+
+                function startScan(){
+                    if(!cameras.length) return;
+
+                    html5QrCode.start(
+                        cameras[currentCamera].id,
+                        { fps: 10, qrbox: 250 },
+                        (decodedText) => {
+                            sendToStreamlit(decodedText);
+                            stopScan();
+                        }
+                    );
                 }
 
-                let scanner = new Html5QrcodeScanner(
-                    "reader",
-                    { fps: 10, qrbox: {width:240, height:240} },
-                    false
-                );
+                function stopScan(){
+                    if(html5QrCode){
+                        html5QrCode.stop().catch(()=>{});
+                    }
+                }
 
-                scanner.render(onScanSuccess);
+                function switchCamera(){
+                    if(cameras.length > 1){
+                        currentCamera = (currentCamera + 1) % cameras.length;
+                        stopScan();
+                        setTimeout(startScan, 400);
+                    }
+                }
                 </script>
-                """, height=420)
+                """, height=460)
 
                 qr_data = st.text_area("QR Result")
 
@@ -227,7 +187,7 @@ with home:
                     if result == "upi":
                         st.success("✅ UPI QR Detected")
                     elif result == "suspicious":
-                        st.warning("⚠️ Suspicious QR (URL detected)")
+                        st.warning("⚠️ Suspicious QR")
                     else:
                         st.error("❌ Invalid QR")
 
