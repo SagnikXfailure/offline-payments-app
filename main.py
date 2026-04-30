@@ -15,9 +15,9 @@ if "transactions" not in st.session_state:
 
 if "profile" not in st.session_state:
     st.session_state.profile = {
-        "name": "Abhishek",
-        "upi": "abhi@okicici",
-        "bank": "ICICI Bank",
+        "name": "Sagnik",
+        "upi": "Sagnik@oksbi",
+        "bank": "SBI Bank",
         "mask": "XXXX 1234"
     }
 
