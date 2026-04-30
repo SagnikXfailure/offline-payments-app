@@ -15,9 +15,9 @@ if "transactions" not in st.session_state:
 
 if "profile" not in st.session_state:
     st.session_state.profile = {
-        "name": "Abhishek",
-        "upi": "abhi@okicici",
-        "bank": "ICICI Bank",
+        "name": "Sagnik",
+        "upi": "Sagnik@oksbi",
+        "bank": "SBI Bank",
         "mask": "XXXX 1234"
     }
 
@@ -114,26 +114,81 @@ with home:
                 st.session_state.popup = None
                 st.rerun()
 
-            # ---------- SCANNER ----------
+            # ---------- PREMIUM SCANNER ----------
             if st.session_state.popup == "scan":
 
                 st.subheader("QR Scanner")
 
                 components.html("""
-                <div style="position:relative; width:100%;">
+                <style>
+                .scanner-container {
+                    position:relative;
+                    width:100%;
+                    height:420px;
+                    border-radius:18px;
+                    overflow:hidden;
+                    background:linear-gradient(145deg,#0a0f1f,#05070d);
+                    box-shadow:0 20px 50px rgba(0,0,0,0.6);
+                }
 
-                    <div id="reader" style="width:100%;"></div>
+                #reader {
+                    width:100%;
+                    height:100%;
+                }
 
-                    <div style="
-                        position:absolute;
-                        top:0;
-                        left:0;
-                        width:100%;
-                        height:2px;
-                        background:#00ffcc;
-                        animation:scan 2s infinite;
-                    "></div>
+                .overlay {
+                    position:absolute;
+                    inset:0;
+                    background:rgba(0,0,0,0.6);
+                    pointer-events:none;
+                }
 
+                .scan-box {
+                    position:absolute;
+                    width:240px;
+                    height:240px;
+                    top:50%;
+                    left:50%;
+                    transform:translate(-50%, -50%);
+                    border:2px solid #00ffcc;
+                    border-radius:16px;
+                    box-shadow:0 0 20px rgba(0,255,204,0.5);
+                }
+
+                .scan-line {
+                    position:absolute;
+                    width:100%;
+                    height:2px;
+                    background:#00ffcc;
+                    animation:scan 2s linear infinite;
+                }
+
+                @keyframes scan {
+                    0% { top:0; }
+                    100% { top:100%; }
+                }
+
+                .scan-text {
+                    position:absolute;
+                    bottom:20px;
+                    width:100%;
+                    text-align:center;
+                    color:#aaa;
+                    font-size:14px;
+                }
+                </style>
+
+                <div class="scanner-container">
+                    <div id="reader"></div>
+                    <div class="overlay"></div>
+
+                    <div class="scan-box">
+                        <div class="scan-line"></div>
+                    </div>
+
+                    <div class="scan-text">
+                        Align QR code inside the frame
+                    </div>
                 </div>
 
                 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -154,20 +209,11 @@ with home:
 
                 let scanner = new Html5QrcodeScanner(
                     "reader",
-                    { fps: 10, qrbox: 250 },
+                    { fps: 10, qrbox: {width:240, height:240} },
                     false
                 );
 
                 scanner.render(onScanSuccess);
-
-                const style = document.createElement('style');
-                style.innerHTML = `
-                @keyframes scan {
-                    0% { top:0; }
-                    100% { top:100%; }
-                }`;
-                document.head.appendChild(style);
-
                 </script>
                 """, height=420)
 
@@ -185,7 +231,6 @@ with home:
                     else:
                         st.error("❌ Invalid QR")
 
-                    # Auto close + redirect
                     st.session_state.popup = "pay"
                     st.rerun()
 
